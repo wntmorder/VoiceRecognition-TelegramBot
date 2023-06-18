@@ -1,0 +1,14 @@
+# Ignore compiled output
+bin/
+obj/
+
+# Ignore voice files
+/voices/
+
+# Ignore IDE files
+.vscode/
+.vs/VoiceRecognitionBot/v16/.suo
+*.sln.iml
+*.ipr
+*.iws
+.idea/

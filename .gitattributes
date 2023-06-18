@@ -1,0 +1,5 @@
+# Set default behavior for text files
+* text=auto
+
+# Specify files that are binary and should not be merged
+*.wav binary
