@@ -1,7 +1,5 @@
 # Voice Recognition Telegram Bot
 
-![GitHub](https://img.shields.io/github/license/wntmorder/VoiceRecognition-TelegramBot)
-
 This Telegram Bot leverages the power of [Assembly AI](https://www.assemblyai.com/) to convert your voice messages into text. Say goodbye to manual transcription; this bot does it for you, making it a valuable tool for anyone using Telegram.
 
 ## Table of Contents
@@ -32,11 +30,11 @@ To use the Voice Recognition Telegram Bot, follow these steps:
    ```
 
 3. Add the necessary dependencies:
-  - Ensure you have .NET Core installed on your system.
-  - Restore the project dependencies using the following command:
-  ```shell
-   dotnet restore
-   ```
+   - Ensure you have .NET Core installed on your system.
+   - Restore the project dependencies using the following command:
+     ```shell
+      dotnet restore
+      ```
 
 4. Set up a Telegram Bot:
    - Create a new bot on Telegram and obtain the API token.
