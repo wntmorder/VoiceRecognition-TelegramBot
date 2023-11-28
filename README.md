@@ -19,30 +19,36 @@ This Telegram Bot leverages the power of [Assembly AI](https://www.assemblyai.co
 
 To use the Voice Recognition Telegram Bot, follow these steps:
 
-1. Clone the repository to your local machine:
+1. Get Assembly AI and Telegram Bot API Keys:
+   - Visit [Assembly AI](https://www.assemblyai.com/) and sign up for an account.
+   - Get your Assembly AI API key.
+   - Create a new bot on [Telegram](https://t.me/BotFather) and get the API token.
+
+2. Clone the repository to your local machine:
    ```shell
    git clone https://github.com/wntmorder/VoiceRecognition-TelegramBot.git
    ```
 
-2. Navigate to the project directory:
+3. Navigate to the project directory:
    ```shell
    cd VoiceRecognition-TelegramBot
    ```
 
-3. Add the necessary dependencies:
+4. Create an appsettings.json file and add your Telegram Bot API Token, AssemblyAI API Key and VoiceMessage file path:
+    ```shell
+    {
+      "AssemblyAIApiKey": "YOUR_ASSEMBLYAI_API_KEY",
+      "TelegramApiKey": "YOUR_TELEGRAM_API_KEY",
+      "VoiceMessageFilePath": "YOUR_FILE_PATH"
+    }
+    ```
+
+5. Add the necessary dependencies:
    - Ensure you have .NET Core installed on your system.
    - Restore the project dependencies using the following command:
-     ```shell
-      dotnet restore
-      ```
-
-4. Set up a Telegram Bot:
-   - Create a new bot on Telegram and obtain the API token.
-   - Update the configuration settings in your C# project with your Telegram Bot API token.
-
-5. Set up Assembly AI:
-   - Visit [Assembly AI](https://www.assemblyai.com/) and sign up for an account.
-   - Obtain your Assembly AI API key.
+    ```shell
+    dotnet restore
+    ```
 
 6. Run the bot:
    ```shell

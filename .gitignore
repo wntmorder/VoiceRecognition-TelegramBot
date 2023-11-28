@@ -1,14 +1,17 @@
-# Ignore compiled output
-bin/
-obj/
-
-# Ignore voice files
-/voices/
-
-# Ignore IDE files
-.vscode/
-.vs/VoiceRecognitionBot/v16/.suo
+/bin/
+/obj/
+/bin/
+/.vscode/
+/.idea/
+*.dll
+*.pdb
+*.cache
+*.log
+*.user
+*.vscode/
+*.suo
 *.sln.iml
-*.ipr
-*.iws
-.idea/
+/voices/
+/appsettings.json
+/appsettings.Development.json
+/appsettings.Production.json
