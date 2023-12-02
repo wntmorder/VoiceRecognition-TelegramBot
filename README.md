@@ -1,6 +1,10 @@
 # Voice Recognition Telegram Bot
 
 This Telegram Bot leverages the power of [Assembly AI](https://www.assemblyai.com/) to convert your voice messages into text. Say goodbye to manual transcription; this bot does it for you, making it a valuable tool for anyone using Telegram.
+**Documentation:**
+- [Assembly AI Documentation](https://www.assemblyai.com/docs/)
+- [Telegram Bot API Documentation](https://telegrambots.github.io/book/index.html)
+
 
 ## Table of Contents
 - [Features](#features)
