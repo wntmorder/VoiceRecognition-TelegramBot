@@ -1,16 +1,16 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Net.Http;
 using System.Text;
-using System.Threading;
+using System.Text.Json;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+using System.Net.Http;
+using System.Net.Http.Json;
+using System.Net.Http.Headers;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Configuration.Json;
+using System.Threading;
 
 namespace VoiceRecognationBot
 {
@@ -18,7 +18,7 @@ namespace VoiceRecognationBot
     {
         private static IConfiguration configuration;
         private static ITelegramBotClient botClient;
-        private static string apiAssemblyAI;
+        private static HttpClient httpClient;
         private static string filePath;
 
         public static async Task Main(string[] args)
@@ -40,42 +40,45 @@ namespace VoiceRecognationBot
         private static void Initialize()
         {
             string apiTelegram = configuration["TelegramApiKey"];
-            apiAssemblyAI = configuration["AssemblyAIApiKey"];
+            string apiAssemblyAI = configuration["AssemblyAIApiKey"];
             filePath = configuration["VoiceMessageFilePath"];
 
             botClient = new TelegramBotClient(apiTelegram);
+            httpClient = new HttpClient();
+            httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(apiAssemblyAI);
         }
         private static async Task Update(ITelegramBotClient botClient, Update update, CancellationToken token)
         {
             if (update.Message.Text != null)
             {
-                await SendMessage(update.Message.Chat, "This bot will help translate your voice into text, just send a voice message to get started.");
+                await botClient.SendTextMessageAsync(update.Message.Chat, "Welcome to our Voice Recognition Bot! \nSimply send us a voice message, and we'll magically transform it into text for you. \nGive it a try now!", cancellationToken: token);
             }
 
             if (update.Message.Voice != null)
             {
                 try
                 {
+                    Message message = await botClient.SendTextMessageAsync(update.Message.Chat, text: "Wait a moment, please! Transcription in progress...", replyToMessageId: update.Message.MessageId, cancellationToken: token);
+
                     await DownloadVoiceMessage(update.Message.Voice.FileId);
 
-                    string uploadedFileUrl = await UploadFileAsync(apiAssemblyAI, filePath);
-                    if (uploadedFileUrl == null)
+                    string uploadUrl = await UploadFileAsync(filePath, httpClient);
+                    if (uploadUrl == null)
                     {
                         Console.WriteLine("Failed to upload file.");
                         return;
                     }
-                    Message message = await botClient.SendTextMessageAsync(update.Message.Chat, "Transcription in progress...", cancellationToken: token);
-                    int messageId = message.MessageId;
 
-                    string transcript = await GetTranscriptAsync(apiAssemblyAI, uploadedFileUrl);
+                    Transcript transcript = await CreateTranscriptAsync(uploadUrl, httpClient);
+                    transcript = await WaitForTranscriptToProcess(transcript, httpClient);
 
-                    await botClient.DeleteMessageAsync(update.Message.Chat, messageId, cancellationToken: token);
-                    await SendMessage(update.Message.Chat, transcript);
+                    await botClient.DeleteMessageAsync(update.Message.Chat, message.MessageId, cancellationToken: token);
+                    await botClient.SendTextMessageAsync(update.Message.Chat, transcript.Text, cancellationToken: token);
                 }
                 catch (Exception e)
                 {
                     Console.WriteLine("Error: " + e.Message);
-                    await SendMessage(update.Message.Chat, "Error on the server side.");
+                    await botClient.SendTextMessageAsync(update.Message.Chat, "Error on the server side.", cancellationToken: token);
                 }
             }
         }
@@ -86,78 +89,45 @@ namespace VoiceRecognationBot
             using FileStream fileStream = new(filePath, FileMode.Create);
             await botClient.DownloadFileAsync(voiceMessage.FilePath, fileStream);
         }
-        private static async Task SendMessage(Chat chatId, string message)
+        private static async Task<string> UploadFileAsync(string filePath, HttpClient httpClient)
         {
-            await botClient.SendTextMessageAsync(
-              chatId: chatId,
-              text: message
-            );
+            using FileStream fileStream = System.IO.File.OpenRead(filePath);
+            using StreamContent fileContent = new(fileStream);
+            fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+
+            using HttpResponseMessage response = await httpClient.PostAsync("https://api.assemblyai.com/v2/upload", fileContent);
+            response.EnsureSuccessStatusCode();
+            JsonDocument jsonDoc = await response.Content.ReadFromJsonAsync<JsonDocument>();
+            return jsonDoc.RootElement.GetProperty("upload_url").GetString();
         }
-        private static async Task<string> UploadFileAsync(string apiAssemblyAI, string path)
+        private static async Task<Transcript> CreateTranscriptAsync(string audioUrl, HttpClient httpClient)
         {
-            using HttpClient client = new();
-            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue(apiAssemblyAI);
+            StringContent content = new(JsonSerializer.Serialize(new { audio_url = audioUrl }), Encoding.UTF8, "application/json");
 
-            using ByteArrayContent fileContent = new(System.IO.File.ReadAllBytes(path));
-            fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
-
-            HttpResponseMessage response;
-            try
-            {
-                response = await client.PostAsync("https://api.assemblyai.com/v2/upload", fileContent);
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine("Error: " + e.Message);
-                return null;
-            }
-
-            if (response.IsSuccessStatusCode)
-            {
-                string responseBody = await response.Content.ReadAsStringAsync();
-                JObject json = JObject.Parse(responseBody);
-                return json["upload_url"].ToString();
-            }
-            else
-            {
-                Console.Error.WriteLine($"Error: {response.StatusCode} - {response.ReasonPhrase}");
-                return null;
-            }
+            using HttpResponseMessage response = await httpClient.PostAsync("https://api.assemblyai.com/v2/transcript", content);
+            response.EnsureSuccessStatusCode();
+            return await response.Content.ReadFromJsonAsync<Transcript>();
         }
-        public static async Task<string> GetTranscriptAsync(string apiAssemblyAI, string audioUrl)
+        private static async Task<Transcript> WaitForTranscriptToProcess(Transcript transcript, HttpClient httpClient)
         {
-            Dictionary<string, string> data = new()
-            {
-                { "audio_url", audioUrl }
-            };
-
-            using HttpClient client = new();
-            client.DefaultRequestHeaders.Add("authorization", apiAssemblyAI);
-            StringContent content = new(JsonConvert.SerializeObject(data), Encoding.UTF8, "application/json");
-            HttpResponseMessage response = await client.PostAsync("https://api.assemblyai.com/v2/transcript", content);
-            string responseContent = await response.Content.ReadAsStringAsync();
-            dynamic responseJson = JsonConvert.DeserializeObject<dynamic>(responseContent);
-
-            string transcriptId = responseJson.id;
-            string pollingEndpoint = $"https://api.assemblyai.com/v2/transcript/{transcriptId}";
+            string pollingEndpoint = $"https://api.assemblyai.com/v2/transcript/{transcript.Id}";
 
             while (true)
             {
-                HttpResponseMessage pollingResponse = await client.GetAsync(pollingEndpoint);
-                string pollingResponseContent = await pollingResponse.Content.ReadAsStringAsync();
-                dynamic pollingResponseJson = JsonConvert.DeserializeObject<dynamic>(pollingResponseContent);
-
-                if (pollingResponseJson.status == "completed")
+                var pollingResponse = await httpClient.GetAsync(pollingEndpoint);
+                transcript = await pollingResponse.Content.ReadFromJsonAsync<Transcript>();
+                switch (transcript.Status)
                 {
-                    return pollingResponseJson.text;
-                }
-                else if (pollingResponseJson.status == "error")
-                {
-                    throw new Exception($"Transcription failed: {pollingResponseJson.error}");
-                }
-                else
-                {
-                    Thread.Sleep(1000);
+                    case "processing":
+                    case "queued":
+                        await Task.Delay(TimeSpan.FromSeconds(3));
+                        break;
+                    case "completed":
+                        return transcript;
+                    case "error":
+                        throw new Exception($"Transcription failed: {transcript.Error}");
+                    default:
+                        throw new Exception("This code shouldn't be reachable.");
                 }
             }
         }
