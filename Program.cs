@@ -51,7 +51,14 @@ namespace VoiceRecognationBot
         {
             if (update.Message.Text != null)
             {
-                await botClient.SendTextMessageAsync(update.Message.Chat, "Welcome to our Voice Recognition Bot! \nSimply send us a voice message, and we'll magically transform it into text for you. \nGive it a try now!", cancellationToken: token);
+                await botClient.SendTextMessageAsync(update.Message.Chat,
+                    "Welcome to @VoiceRecognitionAssemblyAIBot"
+                    + "\nSimply send a voice message, and the bot will magically transform it into text for you."
+                    + "\nGive it a try now!"
+                    + "\n\nCommands:"
+                    + "\n/help - help"
+                    + "\n/select - select language",
+                    cancellationToken: token);
             }
 
             if (update.Message.Voice != null)
